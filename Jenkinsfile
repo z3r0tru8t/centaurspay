@@ -23,14 +23,16 @@ pipeline {
             }
         }
 
-        stage('Docker Build & Run') {
-            steps {
-                echo '🐳 Docker image oluşturuluyor...'
-                sh 'docker build -t centaurspay-api .'
-                sh 'docker stop centaurspay-api || true'
-                sh 'docker rm centaurspay-api || true'
-                sh 'docker run -d -p 8082:80 --name centaurspay-api centaurspay-api'
-            }
-        }
+    stage('Docker Build & Run') {
+       steps {
+        echo '🐳 Docker image oluşturuluyor...'
+        sh '''
+            docker build -t centaurspay-api .
+            docker stop centaurspay-api || true
+            docker rm centaurspay-api || true
+            docker run -d -p 8082:8080 --name centaurspay-api centaurspay-api
+        '''
+    }
+}
     }
 }
