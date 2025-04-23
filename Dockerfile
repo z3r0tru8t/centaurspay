@@ -11,6 +11,3 @@ FROM base AS final
 WORKDIR /app
 COPY --from=build /app .
 ENTRYPOINT ["dotnet", "Centaurspay.Api.dll"]
-
-
-sqp_a6cac61bacacd1c52a13945fb08e23ce5d76aff7
