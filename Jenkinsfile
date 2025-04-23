@@ -1,10 +1,6 @@
 pipeline {
     agent any
 
-    environment {
-        SONAR_TOKEN = credentials('sonarqube-token')
-    }
-
     stages {
         stage('Build') {
             steps {
@@ -39,15 +35,17 @@ pipeline {
             }
         }
 
-        stage('SonarQube Analysis') {
-            steps {
-                echo '🔍 SonarQube analizi başlatılıyor...'
-                withSonarQubeEnv('SonarQube') {
-                    sh 'dotnet sonarscanner begin /k:"centaurspay-api" /d:sonar.login=$SONAR_TOKEN'
-                    sh 'dotnet build'
-                    sh 'dotnet sonarscanner end /d:sonar.login=$SONAR_TOKEN'
-                }
-            }
+       stage('SonarQube Analysis') {
+    environment {
+        SONAR_TOKEN = credentials('sonarqube-token') // bu doğru
+    }
+    steps {
+        withSonarQubeEnv('SonarQube') {  // tam olarak böyle yazılmalı
+            sh 'dotnet sonarscanner begin /k:"centaurspay-api" /d:sonar.login=$SONAR_TOKEN'
+            sh 'dotnet build'
+            sh 'dotnet sonarscanner end /d:sonar.login=$SONAR_TOKEN'
         }
+    }
+}
     }
 }
