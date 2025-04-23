@@ -21,7 +21,21 @@ namespace SecureApiDemo.Controllers
 
             return Unauthorized();
         }
+[HttpGet("get-user")]
+public IActionResult GetUserByQuery([FromQuery] string id)
+{
+    // WARNING: This is intentionally vulnerable to SQL Injection for demo purposes
+    string sqlQuery = $"SELECT * FROM Users WHERE Id = {id}"; // 👈 SQL Injection!
 
+    // Bu satırda gerçek DB yok, simülasyon yapıyoruz
+    var result = new
+    {
+        ExecutedQuery = sqlQuery,
+        Message = "This is a simulation. In a real app, this would query the DB."
+    };
+
+    return Ok(result);
+}
         public class LoginModel
         {
             public string Username { get; set; }
