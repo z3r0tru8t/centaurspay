@@ -35,17 +35,19 @@ pipeline {
             }
         }
 
-       stage('SonarQube Analysis') {
+    stage('SonarQube Analysis') {
     environment {
-        SONAR_TOKEN = credentials('sonarqube-token') // bu doğru
+        SONAR_TOKEN = credentials('sonarqube-token')
+        PATH = "/root/.dotnet/tools:$PATH"
     }
     steps {
-        withSonarQubeEnv('SonarQube') {  // tam olarak böyle yazılmalı
+        withSonarQubeEnv('SonarQube') {
             sh 'dotnet sonarscanner begin /k:"centaurspay-api" /d:sonar.login=$SONAR_TOKEN'
             sh 'dotnet build'
             sh 'dotnet sonarscanner end /d:sonar.login=$SONAR_TOKEN'
         }
     }
 }
+
     }
 }
