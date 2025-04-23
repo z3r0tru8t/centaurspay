@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+    environment {
+        SONAR_TOKEN = credentials('sonar-token')
+    }
+
     stages {
         stage('Build') {
             steps {
@@ -23,16 +27,27 @@ pipeline {
             }
         }
 
-    stage('Docker Build & Run') {
-       steps {
-        echo '🐳 Docker image oluşturuluyor...'
-        sh '''
-            docker build -t centaurspay-api .
-            docker stop centaurspay-api || true
-            docker rm centaurspay-api || true
-            docker run -d -p 8082:8080 --name centaurspay-api centaurspay-api
-        '''
-    }
-}
+        stage('Docker Build & Run') {
+            steps {
+                echo '🐳 Docker image oluşturuluyor...'
+                sh '''
+                    docker build -t centaurspay-api .
+                    docker stop centaurspay-api || true
+                    docker rm centaurspay-api || true
+                    docker run -d -p 8082:8080 --name centaurspay-api centaurspay-api
+                '''
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                echo '🔍 SonarQube analizi başlatılıyor...'
+                withSonarQubeEnv('SonarQube') {
+                    sh 'dotnet sonarscanner begin /k:"centaurspay-api" /d:sonar.login=$SONAR_TOKEN'
+                    sh 'dotnet build'
+                    sh 'dotnet sonarscanner end /d:sonar.login=$SONAR_TOKEN'
+                }
+            }
+        }
     }
 }
