@@ -22,18 +22,55 @@ namespace SecureApiDemo.Controllers
             _config = config;
         }
 
-        [HttpPost("login")]
-        public IActionResult Login([FromBody] LoginRequest request)
-        {
-            var user = _context.Users
-                .FirstOrDefault(u => u.Username == request.Username && u.Password == request.Password);
+[HttpPost("login")]
+public IActionResult Login([FromBody] LoginRequest request)
+{
+    var user = _context.Users.FirstOrDefault(u => u.Username == request.Username);
+    if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.Password))
+        return Unauthorized(new { message = "Geçersiz kullanıcı adı veya şifre." });
 
-            if (user == null)
-                return Unauthorized();
+    var token = GenerateJwtToken(user);
 
-            var token = GenerateJwtToken(user);
-            return Ok(new { token });
-        }
+    // ✅ JWT’yi çerez olarak gönder
+    Response.Cookies.Append("jwt", token, new CookieOptions
+    {
+        HttpOnly = true,
+        SameSite = SameSiteMode.Strict,
+        Secure = true // Not: Sadece HTTPS altında çalışır
+    });
+
+    // Token'ı JSON olarak da dönmek istersen:
+    return Ok(new { message = "Giriş başarılı", token });
+}
+
+
+
+
+
+[HttpPost("register")]
+public IActionResult Register([FromBody] RegisterRequest request)
+{
+    var exists = _context.Users.Any(u => u.Username == request.Username);
+    if (exists)
+        return BadRequest(new { message = "Bu kullanıcı adı zaten alınmış." });
+
+    var hashedPassword = BCrypt.Net.BCrypt.HashPassword(request.Password);
+
+    var user = new User
+    {
+        Username = request.Username,
+        Password = hashedPassword,
+        Role = request.Role
+    };
+
+    _context.Users.Add(user);
+    _context.SaveChanges();
+
+    return Ok(new { message = "Kayıt başarılı." });
+}
+
+
+
 
         private string GenerateJwtToken(User user)
         {

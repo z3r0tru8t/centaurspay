@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>🔬 CORS Testi (localhost:5146)</title>
+</head>
+<body>
+  <h2>🧪 CORS Testi (localhost:5146)</h2>
+  <button onclick="sendLogin()">Login isteği gönder</button>
+  <p id="result"></p>
+
+  <script>
+    async function sendLogin() {
+      try {
+        const response = await fetch("http://localhost:5146/api/auth/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            username: "testuser",
+            password: "123456"
+          })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+          document.getElementById("result").innerHTML =
+            "✅ Token: <code>" + result.token + "</code>";
+        } else {
+          document.getElementById("result").innerHTML =
+            "❌ HATA: " + (result.message || JSON.stringify(result));
+        }
+      } catch (err) {
+        document.getElementById("result").innerHTML =
+          "❌ HATA: " + err.message;
+      }
+    }
+  </script>
+</body>
+</html>
