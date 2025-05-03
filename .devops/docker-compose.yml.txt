@@ -1,0 +1,57 @@
+version: '3.9'
+
+services:
+  gitea:
+    image: gitea/gitea:latest
+    container_name: gitea
+    ports:
+      - "3000:3000"
+      - "222:22"
+    volumes:
+      - gitea_data:/data
+    restart: always
+
+  jenkins:
+    image: jenkins/jenkins:lts
+    container_name: jenkins
+    ports:
+      - "8080:8080"
+    volumes:
+      - jenkins_data:/var/jenkins_home
+    restart: always
+
+  sonarqube:
+    image: sonarqube:lts-community
+    container_name: sonarqube
+    ports:
+      - "9000:9000"
+    environment:
+      - SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true
+    volumes:
+      - sonar_data:/opt/sonarqube/data
+      - sonar_logs:/opt/sonarqube/logs
+    restart: always
+
+  rabbitmq:
+    image: rabbitmq:management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    restart: always
+
+  mongodb:
+    image: mongo
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    restart: always
+
+volumes:
+  gitea_data:
+  jenkins_data:
+  sonar_data:
+  sonar_logs:
+  mongo_data:

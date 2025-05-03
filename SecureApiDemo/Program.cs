@@ -5,45 +5,78 @@ using FluentValidation;
 using FluentValidation.AspNetCore;
 using SecureApiDemo.Data;
 using Microsoft.EntityFrameworkCore;
+using SecureApiDemo.Middlewares;
+using Serilog;
+
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.File("Logs/log.txt", rollingInterval: RollingInterval.Day)
+    .CreateLogger();
+
 
 
 var builder = WebApplication.CreateBuilder(args);
-// SQLite setup
-// ✅ Register EF Core with SQLite
+
+builder.Host.UseSerilog();
+// ✅ EF Core + SQLite
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-    //FluentValidation
+// ✅ FluentValidation
 builder.Services.AddControllers()
     .AddFluentValidation(fv => fv.RegisterValidatorsFromAssemblyContaining<Program>());
-// JWT Auth config
-var jwtConfig = builder.Configuration.GetSection("Jwt");
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-})
-.AddJwtBearer(options =>
-{
-    options.TokenValidationParameters = new TokenValidationParameters
+
+// ✅ JWT config
+var jwtSettings = builder.Configuration.GetSection("Jwt");
+var secretKey = jwtSettings["Key"];
+
+if (string.IsNullOrEmpty(secretKey))
+    throw new Exception("❌ Jwt:Key bulunamadı. Secret Manager doğru yapılandırılmadı.");
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
     {
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
-        ValidIssuer = jwtConfig["Issuer"],
-        ValidAudience = jwtConfig["Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtConfig["Key"]))
-    };
+        options.Events = new JwtBearerEvents
+        {
+            OnAuthenticationFailed = context =>
+            {
+                Console.WriteLine("❌ JWT doğrulama hatası: " + context.Exception.Message);
+                return Task.CompletedTask;
+            }
+        };
+
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+           ValidIssuer = jwtSettings["Issuer"],
+ValidAudience = jwtSettings["Audience"],
+IssuerSigningKey = new SymmetricSecurityKey(
+    Encoding.UTF8.GetBytes(jwtSettings["Key"] ?? throw new InvalidOperationException("JWT Key eksik!"))
+)
+
+        };
+    });
+
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("AdminOnly", policy =>
+        policy.RequireRole("Admin"));
+
+    options.AddPolicy("UserOnly", policy =>
+        policy.RequireRole("User"));
 });
 
 
+// ✅ CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
     {
         policy
-            .AllowAnyOrigin() // Dilersen .WithOrigins("http://127.0.0.1:5500") gibi de verebilirsin
+            .AllowAnyOrigin()
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
@@ -52,26 +85,20 @@ builder.Services.AddCors(options =>
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
+
+// ✅ CSP & Güvenlik Header'ları
 app.Use(async (context, next) =>
 {
-    // CSP – XSS koruması
-    context.Response.Headers.Add("Content-Security-Policy",
-        "default-src 'self'; img-src 'self' https://cdn.example.com; script-src 'self'");
-    // Tarayıcıya tipleri zorla
+    context.Response.Headers.Add("Content-Security-Policy", "default-src 'self'; img-src 'self' https://cdn.example.com; script-src 'self'");
     context.Response.Headers.Add("X-Content-Type-Options", "nosniff");
-
-    // Sayfan başkasının iframe’inde açılmasın
     context.Response.Headers.Add("X-Frame-Options", "DENY");
-
-    // HTTPS zorunlu (tarayıcı önbelleğe alır)
     context.Response.Headers.Add("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
-
-    // Referrer kontrolü
     context.Response.Headers.Add("Referrer-Policy", "no-referrer");
 
     await next();
 });
 
+app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseRouting();
 app.UseCors("AllowAll");
 app.UseAuthentication();

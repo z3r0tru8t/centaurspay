@@ -6,6 +6,7 @@ using System.Text;
 using SecureApiDemo.Models;
 using SecureApiDemo.DTOs;
 using SecureApiDemo.Data;
+using System.Security.Cryptography;
 
 namespace SecureApiDemo.Controllers
 {
@@ -26,54 +27,86 @@ namespace SecureApiDemo.Controllers
 public IActionResult Login([FromBody] LoginRequest request)
 {
     var user = _context.Users.FirstOrDefault(u => u.Username == request.Username);
-    if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.Password))
-        return Unauthorized(new { message = "Geçersiz kullanıcı adı veya şifre." });
 
+    if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.Password))
+        return Unauthorized("Geçersiz kullanıcı adı veya şifre.");
+
+    // ✅ JWT oluştur
     var token = GenerateJwtToken(user);
 
-    // ✅ JWT’yi çerez olarak gönder
-    Response.Cookies.Append("jwt", token, new CookieOptions
-    {
-        HttpOnly = true,
-        SameSite = SameSiteMode.Strict,
-        Secure = true // Not: Sadece HTTPS altında çalışır
-    });
+    // ✅ Refresh Token üret & kaydet
+    var refreshToken = GenerateRefreshToken();
+    user.RefreshToken = refreshToken;
+    user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(7);
+    _context.SaveChanges();
 
-    // Token'ı JSON olarak da dönmek istersen:
-    return Ok(new { message = "Giriş başarılı", token });
+    return Ok(new { token, refreshToken });
 }
-
-
-
 
 
 [HttpPost("register")]
 public IActionResult Register([FromBody] RegisterRequest request)
 {
-    var exists = _context.Users.Any(u => u.Username == request.Username);
-    if (exists)
-        return BadRequest(new { message = "Bu kullanıcı adı zaten alınmış." });
-
-    var hashedPassword = BCrypt.Net.BCrypt.HashPassword(request.Password);
-
-    var user = new User
+    try
     {
-        Username = request.Username,
-        Password = hashedPassword,
-        Role = request.Role
-    };
+        // Kullanıcı adı mevcut mu kontrolü
+        var exists = _context.Users.Any(u => u.Username == request.Username);
+        if (exists)
+            return BadRequest(new { message = "Bu kullanıcı adı zaten alınmış." });
 
-    _context.Users.Add(user);
-    _context.SaveChanges();
+        // Şifreyi güvenli biçimde hashle
+        var hashedPassword = BCrypt.Net.BCrypt.HashPassword(request.Password);
 
-    return Ok(new { message = "Kayıt başarılı." });
+        // Yeni kullanıcı nesnesi oluştur
+        var user = new User
+        {
+            Username = request.Username,
+            Password = hashedPassword,
+            Role = request.Role,
+            RefreshToken = "", // RefreshToken alanı boş başlatılıyor
+            RefreshTokenExpiry = DateTime.UtcNow // Başlangıç değeri
+        };
+
+        // Kaydet
+        _context.Users.Add(user);
+        _context.SaveChanges();
+
+        return Ok(new { message = "Kayıt başarılı." });
+    }
+    catch (Exception ex)
+    {
+        // Loglama yapılabilir: ex.Message
+        return StatusCode(500, new { message = "Sunucu hatası: " + ex.Message });
+    }
 }
 
 
 
+[HttpPost("refresh-token")]
+public IActionResult RefreshToken([FromBody] RefreshTokenRequest model)
+{
+    var user = _context.Users.FirstOrDefault(u =>
+        u.RefreshToken == model.RefreshToken &&
+        u.RefreshTokenExpiry > DateTime.UtcNow);
+
+    if (user == null)
+        return Unauthorized(new { message = "Refresh token geçersiz veya süresi dolmuş." });
+
+    var newAccessToken = GenerateJwtToken(user);
+    var newRefreshToken = GenerateRefreshToken();
+
+    user.RefreshToken = newRefreshToken;
+    user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(7);
+    _context.SaveChanges();
+
+    return Ok(new { token = newAccessToken, refreshToken = newRefreshToken });
+}
+
 
         private string GenerateJwtToken(User user)
         {
+
+            
             var jwtSettings = _config.GetSection("Jwt");
 
             var claims = new[]
@@ -95,5 +128,13 @@ public IActionResult Register([FromBody] RegisterRequest request)
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
+
+        private string GenerateRefreshToken()
+{
+    var randomBytes = new byte[64];
+    using var rng = RandomNumberGenerator.Create();
+    rng.GetBytes(randomBytes);
+    return Convert.ToBase64String(randomBytes);
+}
     }
 }

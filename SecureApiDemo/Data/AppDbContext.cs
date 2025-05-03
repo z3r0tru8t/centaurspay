@@ -1,7 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using SecureApiDemo.Models;
-
-namespace SecureApiDemo.Data;
 public class AppDbContext : DbContext
 {
     public AppDbContext(DbContextOptions<AppDbContext> options)

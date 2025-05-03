@@ -38,6 +38,7 @@ pipeline {
     stage('SonarQube Analysis') {
     environment {
         SONAR_TOKEN = credentials('sonarqube-token')
+        DOTNET_ROOT = "/root/.dotnet"
         PATH = "/root/.dotnet/tools:$PATH"
     }
     steps {
