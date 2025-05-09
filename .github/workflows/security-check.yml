@@ -17,7 +17,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v3
       with:
-        dotnet-version: '8.x' # veya 7.x kullanıyorsan
+        dotnet-version: '9.0.x' # veya 7.x kullanıyorsan
 
     - name: Restore Dependencies
       run: dotnet restore
