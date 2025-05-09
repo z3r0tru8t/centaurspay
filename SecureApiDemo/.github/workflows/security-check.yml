@@ -1,0 +1,35 @@
+name: Security & Quality Checks
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "*" ]
+
+jobs:
+  security-checks:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: '8.x' # veya 7.x kullanıyorsan
+
+    - name: Restore Dependencies
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build --no-restore --configuration Release
+
+    - name: Run Tests
+      run: dotnet test --no-restore --no-build --verbosity normal
+
+    - name: Check for Vulnerable Packages
+      run: dotnet list package --vulnerable || true
+
+    - name: Code Format Check
+      run: dotnet format --verify-no-changes || true

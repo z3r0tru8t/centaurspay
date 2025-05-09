@@ -7,6 +7,17 @@ namespace SecureApiDemo.Controllers
     [Route("api/test")]
     public class TestController : ControllerBase
     {
+
+         [ApiController]
+    [Route("api/[controller]")]
+    public class RateLimitTestController : ControllerBase
+    {
+        [HttpGet("ping")]
+        public IActionResult Ping()
+        {
+            return Ok(new { message = "Pong - You are within the rate limit!" });
+        }
+    }
         private readonly AppDbContext _context;
         private readonly ILogger<TestController> _logger;
 

@@ -7,6 +7,8 @@ using SecureApiDemo.Data;
 using Microsoft.EntityFrameworkCore;
 using SecureApiDemo.Middlewares;
 using Serilog;
+using AspNetCoreRateLimit;
+
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.File("Logs/log.txt", rollingInterval: RollingInterval.Day)
@@ -15,6 +17,14 @@ Log.Logger = new LoggerConfiguration()
 
 
 var builder = WebApplication.CreateBuilder(args);
+
+
+builder.Services.AddMemoryCache();
+builder.Services.Configure<IpRateLimitOptions>(builder.Configuration.GetSection("IpRateLimiting"));
+builder.Services.AddSingleton<IIpPolicyStore, MemoryCacheIpPolicyStore>();
+builder.Services.AddSingleton<IRateLimitCounterStore, MemoryCacheRateLimitCounterStore>();
+builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
+builder.Services.AddInMemoryRateLimiting();
 
 builder.Host.UseSerilog();
 // ✅ EF Core + SQLite
@@ -104,4 +114,5 @@ app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.UseIpRateLimiting();
 app.Run();
