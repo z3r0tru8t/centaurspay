@@ -1,5 +1,21 @@
 var builder = WebApplication.CreateBuilder(args);
 
+
+// To add environment variables
+builder.Configuration.AddEnvironmentVariables();  
+
+
+var jwtKey = builder.Configuration["JWT_KEY"];
+var googleClientId = builder.Configuration["GOOGLE_CLIENT_ID"];
+var googleClientSecret = builder.Configuration["GOOGLE_CLIENT_SECRET"];
+
+
+Console.WriteLine($"JWT Key: {jwtKey}");
+Console.WriteLine($"Google Client ID: {googleClientId}");
+Console.WriteLine($"Google Client Secret: {googleClientSecret}");
+
+
+
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddEndpointsApiExplorer();
@@ -45,3 +61,6 @@ record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
 {
     public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
 }
+
+
+
