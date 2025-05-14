@@ -122,3 +122,6 @@ app.UseAuthorization();
 app.UseIpRateLimiting();
 app.MapControllers();
 app.Run();
+
+var username = builder.Configuration["Auth:Username"];
+Console.WriteLine($"Loaded secret username: {username}");
